@@ -116,11 +116,11 @@ individual **section** for it. Each section is an object with `docsText` and
       lines    = code.split '\n'
       sections = []
       lang     = getLanguage source, config
-      hasCode  = docsText = codeText = ''
+      hasCode  = hasReview  = docsText = codeText = ''
 
       save = ->
         sections.push {docsText, codeText}
-        hasCode = docsText = codeText = ''
+        hasCode = hasReview = docsText = codeText = ''
 
 Our quick-and-dirty implementation of the literate programming style. Simply
 invert the prose and code relationship on a per-line basis, and then continue as
@@ -138,15 +138,31 @@ normal below.
             isText = yes
             lang.symbol + ' ' + line
 
+Iterate over all the lines. When on a code review, if we see a comment
+add it to the Docco section documentation, otherwise add it as a
+comment of the code.
+
       for line in lines
         if line.match(lang.commentMatcher) and not line.match(lang.commentFilter)
-          save() if hasCode
-          docsText += (line = line.replace(lang.commentMatcher, '')) + '\n'
-          save() if /^(---+|===+)$/.test line
+          line1 = line.replace(lang.commentMatcher, '')
+
+          if line1.match(lang.commentReview)
+            hasReview = yes
+
+          if hasReview
+            save() if hasCode
+            hasReview = yes
+            docsText += line1 + '\n'
+            save() if /^(---+|===+)$/.test line1
+          else
+            codeText += line + '\n'
+            hasCode = yes
         else
           hasCode = yes
+          hasReview = no
           codeText += line + '\n'
       save()
+
 
       sections
 
@@ -185,8 +201,25 @@ if not specified.
       for section, i in sections
         code = highlightjs.highlight(language.name, section.codeText).value
         code = code.replace(/\s+$/, '')
+
+Poor man matcher. I'm sorry.
+
+        lines = section.docsText.split('\n')
+        newText = ''
+        for line in lines
+          if line.match(/REVIEW/)
+            newText += '**' + line + '**\n'
+          else if line.match(/^@/)
+            newText += '\n\n' + line
+          else
+            newText += line
+
+        section.docsText = newText
+
+
         section.codeHtml = "<div class='highlight'><pre>#{code}</pre></div>"
         section.docsHtml = marked(section.docsText)
+
 
 Once all of the code has finished highlighting, we can **write** the resulting
 documentation file by passing the completed HTML sections into the template,
@@ -292,6 +325,10 @@ Build out the appropriate matchers and delimiters for each language.
 Does the line begin with a comment?
 
         l.commentMatcher = ///^\s*#{l.symbol}\s?///
+
+Does this line begins a review?
+
+        l.commentReview = /REVIEW/
 
 Ignore [hashbangs](http://en.wikipedia.org/wiki/Shebang_%28Unix%29) and interpolations...
 
