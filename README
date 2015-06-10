@@ -1,4 +1,11 @@
- ____
+Let go of the pain reviewing your reviews. Install this version of
+docco and at least read them in your browser, beautifully, and ghetto.
+
+`git grep -l REVIEW | xargs docco`
+
+
+
+____
 /\  _`\
 \ \ \/\ \        ___         ___         ___         ___
  \ \ \ \ \      / __`\      /'___\      /'___\      / __`\
